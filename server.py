@@ -1,4 +1,3 @@
-# -------------------- server.py --------------------
 from flask import Flask, request, jsonify
 import swisseph as swe
 import math
@@ -7,7 +6,6 @@ import os
 app = Flask(__name__)
 
 # -------------------- EPHEMERIS PATH --------------------
-# Use a dynamic path so it works locally AND in cloud hosting
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 EPHE_PATH = os.path.join(BASE_DIR, "ephe")
 swe.set_ephe_path(EPHE_PATH)
@@ -74,6 +72,12 @@ def compute_ascendant_and_houses(jd_ut, lat, lon):
         })
 
     return asc_lon, houses
+
+# -------------------- ROOT ROUTE (fix for 404) --------------------
+
+@app.get("/")
+def home():
+    return jsonify({"status": "Astrology API is running!"})
 
 # -------------------- API ROUTE --------------------
 
