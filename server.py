@@ -1,3 +1,4 @@
+# -------------------- server.py --------------------
 from flask import Flask, request, jsonify
 import swisseph as swe
 import math
@@ -42,38 +43,25 @@ PLANETS = {
 
 def compute_planet_longitudes(jd_ut):
     planets = {}
-
     for name, p_id in PLANETS.items():
         result, flag = swe.calc_ut(jd_ut, p_id)
         lon = wrap360(result[0])
-
         planets[name] = {
             "longitude": lon,
             "sign": sign_of(lon),
             "degreeInSign": lon % 30
         }
-
     return planets
 
-# -------------------- Ascendant & Houses --------------------
+# -------------------- Ascendant --------------------
 
 def compute_ascendant_and_houses(jd_ut, lat, lon):
+    # We still call swe.houses to get the ascendant, but we will NOT return cusps
     cusps, ascmc = swe.houses(jd_ut, lat, lon, b'W')
-
     asc_lon = wrap360(ascmc[0])
+    return asc_lon
 
-    houses = []
-    for h in range(12):
-        cusp_value = wrap360(cusps[h])
-        houses.append({
-            "house": h + 1,
-            "cuspLongitude": cusp_value,
-            "sign": sign_of(cusp_value)
-        })
-
-    return asc_lon, houses
-
-# -------------------- ROOT ROUTE (fix for 404) --------------------
+# -------------------- ROOT ROUTE --------------------
 
 @app.get("/")
 def home():
@@ -83,7 +71,6 @@ def home():
 
 @app.post("/chart/natal")
 def chart_natal():
-
     data = request.json
 
     date = data["date"]
@@ -98,8 +85,11 @@ def chart_natal():
 
     jd_ut = swe.julday(year, month, day, hour_ut)
 
+    # Compute planets
     planets = compute_planet_longitudes(jd_ut)
-    asc_lon, houses = compute_ascendant_and_houses(jd_ut, lat, lon)
+
+    # Compute ascendant only (no cusps)
+    asc_lon = compute_ascendant_and_houses(jd_ut, lat, lon)
 
     ascendant = {
         "longitude": asc_lon,
@@ -107,12 +97,13 @@ def chart_natal():
         "degreeInSign": asc_lon % 30
     }
 
+    # Assign whole-sign houses to planets
     for name, p in planets.items():
         p["house"] = whole_sign_house(p["longitude"], asc_lon)
 
     return jsonify({
         "ascendant": ascendant,
-        "houses": houses,
+        "houses": [],  # <-- cusps removed
         "planets": planets
     })
 
